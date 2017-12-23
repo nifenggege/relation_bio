@@ -2,6 +2,7 @@ package com.feng.jiajia.service;
 
 import com.feng.jiajia.model.Entity;
 import com.feng.jiajia.model.Relation;
+import com.feng.jiajia.model.Sentence;
 import com.feng.jiajia.utils.StringUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -12,14 +13,18 @@ import java.io.*;
 import java.util.List;
 import java.util.Set;
 
-public class RelationEntityBaseSearchService {
+/**
+ * 跨两个句子，且实体分别位于两个句子中
+ */
+public class RelationEntityBaseCrossSentenceStrictService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityBaseSearchService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityBaseCrossSentenceStrictService.class);
     private static final String BASE_PATH = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\";
-    private static final String SEN_SPL_TEXT_PATH = "data/sentencesplit/";
+    private static final String SEN_SPL_TEXT_PATH = "data/own_sentenes_split/";
     private static final String ORIGIN_A1_A2_PATH = "data/origin/";
-    private static final String RELATION_PATH = "data/relation/";
+    private static final String RELATION_PATH = "data/cross_strict_relation/";
     private static final String RESULT_SUFFIX = ".ins";
+
 
     /**
      * 组建句子中的关系
@@ -82,62 +87,105 @@ public class RelationEntityBaseSearchService {
         BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(path), "utf-8"));
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(savePath), "utf-8"));
         String line = null;
-        int offset = 0;
+        List<String> sentenceList = Lists.newArrayList();
         while((line=br.readLine())!=null){
-
-            int last = offset + line.length();
-            //1. 找到句子中的实体
-            List<Entity> containsEntity = getEntityLIstFromSentence(line, entityList, offset, last);
-            if(containsEntity.size()<2){
-                offset = last+1;
-                continue;
+            sentenceList.add(line);
+        }
+        Set<String> resultSet = Sets.newHashSet();
+        //分句子,跨2个句子就需要获取2种文件
+        for(int m=0; m<2; m++){
+            List<Sentence> crossSentenceList = Lists.newArrayList();
+            String str = "";
+            int index = 0;
+            int size = -1;
+            for(index=0; index<=m && index<sentenceList.size(); index++){
+                if(index==0){
+                    size = sentenceList.get(index).length();
+                }
+                str += sentenceList.get(index)+" ";
             }
-            //2. 判断实体间的关系
-            for(int i=0; i<containsEntity.size(); i++){
-                for(int j=i+1; j<containsEntity.size(); j++){
-                    Entity firstEntity = containsEntity.get(i);
-                    Entity secondEntity = containsEntity.get(j);
-                    String firstType = firstEntity.getType();
-                    String secondType = secondEntity.getType();
-                    if(matchRelation(firstEntity.getType(), secondEntity.getType())){
-
-                        if(firstEntity.getMaxPoint().begin > secondEntity.getMaxPoint().begin){
-                            Entity temp = firstEntity;
-                            firstEntity = secondEntity;
-                            secondEntity = temp;
-                        }
-
-                        if(firstEntity.getMaxPoint().end > secondEntity.getMaxPoint().begin){
-                            LOGGER.error("实体间存在交叉，不处理：{}=={}", firstEntity, secondEntity );
-                            continue;
-                        }
-                        int firstStart = firstEntity.getMaxPoint().begin-offset;
-                        int firstEnd = firstEntity.getMaxPoint().end-offset;
-                        String firstEntityName = line.substring(firstStart, firstEnd);
-
-                        int secondStart = secondEntity.getMaxPoint().begin-offset;
-                        int secondEnd = secondEntity.getMaxPoint().end-offset;
-                        String secondEntityName = line.substring(secondStart, secondEnd);
-                        String result = line.substring(0, firstStart) + (("Bacteria".equals(firstEntity.getType()))?"PROT_1":"PROT_2") +
-                            line.substring(firstEnd, secondStart) + ("Bacteria".equals(secondEntity.getType())?"PROT_1":"PROT_2")+ line.substring(secondEnd);
-
-                        if( (firstEntity.getIndexList().size()>1 || firstEntityName.equals(firstEntity.getName())) &&
-                                secondEntity.getIndexList().size()>1 || secondEntityName.equals(secondEntity.getName())){
-                            if(containsRelation(firstEntity.getAliasName(), secondEntity.getAliasName(), relationList)){
-                                bw.write("+1\t" + result);
-                                bw.newLine();
-                            }else{
-                                bw.write("-1\t" + result);
-                                bw.newLine();
-                            }
-                        }else{
-                            LOGGER.error("获取的值不匹配{}=={}", firstEntity, secondEntity);
-                        }
+            if(!StringUtils.isEmpty(str)) {
+                str = str.substring(0, str.length() - 1);
+                crossSentenceList.add(new Sentence(str, size));
+            }
+            while(index<sentenceList.size()) {
+                String temp = "";
+                size = -1;
+                for(int j=0; j<2 && index<sentenceList.size(); j++,index++){
+                    if(j==0){
+                        size=sentenceList.get(index).length();
                     }
+                    temp +=sentenceList.get(index)+" ";
+                }
+                if(!StringUtils.isEmpty(temp)) {
+                    temp = temp.substring(0, temp.length() - 1);
+                    crossSentenceList.add(new Sentence(temp, size));
                 }
             }
 
-            offset = last+1;
+            int offset = 0;
+            for(int k=0; k<crossSentenceList.size(); k++){
+                Sentence sentence = crossSentenceList.get(k);
+                line = sentence.getSentence();
+                int last = offset + line.length();
+                //1. 找到句子中的实体
+                List<Entity> containsEntity = getEntityLIstFromSentence(line, entityList, offset, last);
+                if(containsEntity.size()<2){
+                    offset = last+1;
+                    continue;
+                }
+                //2. 判断实体间的关系
+                for(int i=0; i<containsEntity.size(); i++){
+                    for(int j=i+1; j<containsEntity.size(); j++){
+                        Entity firstEntity = containsEntity.get(i);
+                        Entity secondEntity = containsEntity.get(j);
+                        String firstType = firstEntity.getType();
+                        String secondType = secondEntity.getType();
+                        if(matchRelation(firstEntity.getType(), secondEntity.getType())){
+
+                            if(firstEntity.getMaxPoint().begin > secondEntity.getMaxPoint().begin){
+                                Entity temp = firstEntity;
+                                firstEntity = secondEntity;
+                                secondEntity = temp;
+                            }
+
+                            if(firstEntity.getMaxPoint().end > secondEntity.getMaxPoint().begin){
+                                LOGGER.error("实体间存在交叉，不处理：{}=={}", firstEntity, secondEntity );
+                                continue;
+                            }
+                            int firstStart = firstEntity.getMaxPoint().begin-offset;
+                            int firstEnd = firstEntity.getMaxPoint().end-offset;
+                            String firstEntityName = line.substring(firstStart, firstEnd);
+
+                            int secondStart = secondEntity.getMaxPoint().begin-offset;
+                            int secondEnd = secondEntity.getMaxPoint().end-offset;
+                            String secondEntityName = line.substring(secondStart, secondEnd);
+                            if(!(firstEnd<=sentence.getFirstSentenceLength() && secondStart>=sentence.getFirstSentenceLength())){
+                                continue;
+                            }
+                            String result = line.substring(0, firstStart) + (("Bacteria".equals(firstEntity.getType()))?"PROT_1":"PROT_2") +
+                                    line.substring(firstEnd, secondStart) + ("Bacteria".equals(secondEntity.getType())?"PROT_1":"PROT_2")+ line.substring(secondEnd);
+
+                            if( (firstEntity.getIndexList().size()>1 || firstEntityName.equals(firstEntity.getName())) &&
+                                    secondEntity.getIndexList().size()>1 || secondEntityName.equals(secondEntity.getName())){
+                                if(containsRelation(firstEntity.getAliasName(), secondEntity.getAliasName(), relationList)){
+                                    resultSet.add("+1\t" + result);
+                                }else{
+                                    resultSet.add("-1\t" + result);
+                                }
+                            }else{
+                                LOGGER.error("获取的值不匹配{}=={}", firstEntity, secondEntity);
+                            }
+                        }
+                    }
+                }
+                offset = last+1;
+            }
+        }
+
+        for(String key : resultSet){
+            bw.write(key);
+            bw.newLine();
         }
 
         br.close();
@@ -190,10 +238,14 @@ public class RelationEntityBaseSearchService {
         String path = BASE_PATH+ORIGIN_A1_A2_PATH+env+"/" + name+".a2";
         BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(path), "utf-8"));
         String line = null;
+        List<String> equivList = Lists.newArrayList();
         while((line=br.readLine())!=null){
             if(line.contains("Equiv")){
                 //特殊处理
-                continue;
+                String[] subTokens = line.split("(\\s)+");
+                for(int i=2; i<subTokens.length; i++){
+                    equivList.add(subTokens[i]);
+                }
             }
             String[] tokens = line.split("(\\s)+");
             if(tokens.length!=4){
@@ -204,8 +256,40 @@ public class RelationEntityBaseSearchService {
             relation.setSecond(tokens[3]);
             result.add(relation);
         }
+        updateRelation(result, equivList);
         br.close();
         return result;
+    }
+
+    private void updateRelation(List<Relation> result, List<String> equivList) {
+
+        for(Relation relation : result){
+            String first = relation.getFirst().aliasName;
+            if(equivList.contains(first)){
+                for(String token : equivList){
+                    if(token.equals(first)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+token);
+                    temp.setSecond(relation.getSecond().type+":"+relation.getSecond().aliasName);
+                    result.add(temp);
+                }
+                continue;
+            }
+            String second = relation.getSecond().aliasName;
+            if(equivList.contains(second)){
+                for(String token : equivList){
+                    if(token.equals(second)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+relation.getFirst().aliasName);
+                    temp.setSecond(relation.getSecond().type+":"+token);
+                    result.add(temp);
+                }
+            }
+        }
     }
 
     private List<Entity> getEntityListFromA1(String env, String fileName) throws IOException {
@@ -254,6 +338,11 @@ public class RelationEntityBaseSearchService {
     }
 
     private String makesureFileExist(String env) {
+        File relationFile = new File(BASE_PATH+RELATION_PATH);
+        if(!relationFile.exists()){
+            relationFile.mkdir();
+        }
+
         String resultPath = BASE_PATH+RELATION_PATH+env;
         File resultFile = new File(resultPath);
         if(!resultFile.exists()){
@@ -264,7 +353,7 @@ public class RelationEntityBaseSearchService {
     }
 
     public static void main(String[] args) {
-        RelationEntityBaseSearchService service = new RelationEntityBaseSearchService();
+        RelationEntityBaseCrossSentenceStrictService service = new RelationEntityBaseCrossSentenceStrictService();
         service.buildRelation("train");
     }
 }

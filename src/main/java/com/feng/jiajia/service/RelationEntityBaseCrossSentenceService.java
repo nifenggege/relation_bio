@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 基于实体下标查找
+ * 基于扩句子，可以自己制定扩句子的句子数
  */
 public class RelationEntityBaseCrossSentenceService {
 
@@ -224,10 +224,14 @@ public class RelationEntityBaseCrossSentenceService {
         String path = BASE_PATH+ORIGIN_A1_A2_PATH+env+"/" + name+".a2";
         BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(path), "utf-8"));
         String line = null;
+        List<String> equivList = Lists.newArrayList();
         while((line=br.readLine())!=null){
             if(line.contains("Equiv")){
                 //特殊处理
-                continue;
+                String[] subTokens = line.split("(\\s)+");
+                for(int i=2; i<subTokens.length; i++){
+                    equivList.add(subTokens[i]);
+                }
             }
             String[] tokens = line.split("(\\s)+");
             if(tokens.length!=4){
@@ -238,8 +242,40 @@ public class RelationEntityBaseCrossSentenceService {
             relation.setSecond(tokens[3]);
             result.add(relation);
         }
+        updateRelation(result, equivList);
         br.close();
         return result;
+    }
+
+    private void updateRelation(List<Relation> result, List<String> equivList) {
+
+        for(Relation relation : result){
+            String first = relation.getFirst().aliasName;
+            if(equivList.contains(first)){
+                for(String token : equivList){
+                    if(token.equals(first)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+token);
+                    temp.setSecond(relation.getSecond().type+":"+relation.getSecond().aliasName);
+                    result.add(temp);
+                }
+                continue;
+            }
+            String second = relation.getSecond().aliasName;
+            if(equivList.contains(second)){
+                for(String token : equivList){
+                    if(token.equals(second)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+relation.getFirst().aliasName);
+                    temp.setSecond(relation.getSecond().type+":"+token);
+                    result.add(temp);
+                }
+            }
+        }
     }
 
     private List<Entity> getEntityListFromA1(String env, String fileName) throws IOException {
