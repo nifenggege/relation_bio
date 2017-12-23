@@ -12,14 +12,11 @@ import java.io.*;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 基于实体下标查找
- */
-public class RelationEntityService {
+public class RelationEntityBaseSearchService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityBaseSearchService.class);
     private static final String BASE_PATH = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\";
-    private static final String SEN_SPL_TEXT_PATH = "data/own_sentenes_split/";
+    private static final String SEN_SPL_TEXT_PATH = "data/sentencesplit/";
     private static final String ORIGIN_A1_A2_PATH = "data/origin/";
     private static final String RELATION_PATH = "data/relation/";
     private static final String RESULT_SUFFIX = ".ins";
@@ -267,7 +264,7 @@ public class RelationEntityService {
     }
 
     public static void main(String[] args) {
-        RelationEntityService service = new RelationEntityService();
+        RelationEntityBaseSearchService service = new RelationEntityBaseSearchService();
         service.buildRelation("train");
     }
 }
