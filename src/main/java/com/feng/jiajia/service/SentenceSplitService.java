@@ -9,6 +9,10 @@ import java.io.*;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 分句服务
+ * 主要是为了按照官方进行分句，又能保留原始语料中的offset
+ */
 public class SentenceSplitService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SentenceSplitService.class);

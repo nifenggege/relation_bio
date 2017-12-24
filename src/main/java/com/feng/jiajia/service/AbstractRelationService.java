@@ -1,0 +1,287 @@
+package com.feng.jiajia.service;
+
+import com.feng.jiajia.model.Entity;
+import com.feng.jiajia.model.Relation;
+import com.feng.jiajia.utils.StringUtils;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.util.List;
+import java.util.Set;
+
+public abstract class AbstractRelationService implements RelationService{
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRelationService.class);
+    public static final String BASE_PATH = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\";
+    public static final String SEN_SPL_TEXT_PATH = "data/own_sentenes_split/";
+    public static final String ORIGIN_A1_A2_PATH = "data/origin/";
+    public static final String RELATION_PATH = "data/relation/";
+    public static final String RESULT_SUFFIX = ".ins";
+
+    public boolean buildRelation(String env){
+
+        if(StringUtils.isEmpty(env) ||
+                (!"train".equals(env) && !"dev".equals(env))){
+            LOGGER.error("输入的环境不正确，请检查环境. env={}", env);
+            return false;
+        }
+
+        processDocuments(env);
+        return false;
+    }
+
+    /**
+     * 处理多个语料文件
+     * @param env
+     */
+    private void processDocuments(String env) {
+
+        String path = makesureFileExist(env);
+        Set<String> documentSet = getDocuments(env);
+        for (String name : documentSet) {
+            String fileName = BASE_PATH + SEN_SPL_TEXT_PATH + env + "/" + name;
+            try {
+                processDocument(env, name);
+            } catch (FileNotFoundException e) {
+
+            } catch (UnsupportedEncodingException e) {
+
+            } catch (IOException e) {
+
+            }
+        }
+    }
+
+    /**
+     * 获取该环境下的所有文件名
+     * @param env
+     * @return
+     */
+    private Set<String> getDocuments(String env) {
+        String sourcePath = BASE_PATH+SEN_SPL_TEXT_PATH+env;
+        File file = new File(sourcePath);
+        String[] fileNames = file.list();
+        if(fileNames==null){
+            return Sets.newHashSet();
+        }
+        return Sets.newHashSet(fileNames);
+    }
+
+    /**
+     * 处理单个文档
+     * @param fileName
+     */
+    private void processDocument(String env, String fileName) throws IOException {
+
+
+        //1 读取a1文件，返回Entity列表， Bacteria  Habitat  Geographical
+        List<Entity> entityList = getEntityListFromA1(env, fileName);
+        //2 读取a2文件, 返回Relation列表， equiv
+        List<Relation> relationList = getRelationFromA2(env, fileName);
+        //3 读取txt分析
+        processTxt(env, fileName, entityList, relationList);
+    }
+
+    /**
+     * 从a1文件中获取符合条件的实体
+     * Bacteria  Habitat  Geographical
+     * @param env
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
+    public List<Entity> getEntityListFromA1(String env, String fileName) throws IOException {
+
+        List<Entity> result = Lists.newArrayList();
+        String name = fileName.split("\\.")[0];
+        String path = BASE_PATH+ORIGIN_A1_A2_PATH+env+"/" + name+".a1";
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(path), "utf-8"));
+        String line = null;
+        while((line=br.readLine())!=null){
+            String[] tokens = line.split("\t");
+            if(tokens.length!=3){
+                LOGGER.error("a1 数据不规范：{}", line);
+            }
+
+            String[] subTokens = tokens[1].split("(\\s)+");
+            if(subTokens.length<3){
+                LOGGER.error("a1 数据不规范：{}", line);
+            }
+
+            if(!("Habitat".equals(subTokens[0]) ||
+                    "Bacteria".equals(subTokens[0]) ||
+                    "Geographical".equals(subTokens[0]))){
+                continue;
+            }
+
+            Entity entity = new Entity();
+            entity.setAliasName(tokens[0]);
+            entity.setType(subTokens[0]);
+            entity.setIndexList(tokens[1].replaceAll(subTokens[0],"").trim());
+            entity.setName(tokens[2]);
+            result.add(entity);
+        }
+        br.close();
+        return result;
+    }
+
+    /**
+     * 从a2文件中获取正例关系
+     * 特殊处理Equiv行
+     * @param env
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
+    public List<Relation> getRelationFromA2(String env, String fileName) throws IOException {
+
+        List<Relation> result = Lists.newArrayList();
+        String name = fileName.split("\\.")[0];
+        String path = BASE_PATH+ORIGIN_A1_A2_PATH+env+"/" + name+".a2";
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(path), "utf-8"));
+        String line = null;
+        List<String> equivList = Lists.newArrayList();
+        while((line=br.readLine())!=null){
+            if(line.contains("Equiv")){
+                //特殊处理
+                String[] subTokens = line.split("(\\s)+");
+                for(int i=2; i<subTokens.length; i++){
+                    equivList.add(subTokens[i]);
+                }
+            }
+            String[] tokens = line.split("(\\s)+");
+            if(tokens.length!=4){
+                LOGGER.error("a2 数据不规范：{}", line);
+            }
+            Relation relation = new Relation();
+            relation.setFirst(tokens[2]);
+            relation.setSecond(tokens[3]);
+            result.add(relation);
+        }
+        updateRelation(result, equivList);
+        br.close();
+        return result;
+    }
+
+    /**
+     * 特殊处理Equiv行
+     * @param result
+     * @param equivList
+     */
+    private void updateRelation(List<Relation> result, List<String> equivList) {
+
+        for(Relation relation : result){
+            String first = relation.getFirst().aliasName;
+            if(equivList.contains(first)){
+                for(String token : equivList){
+                    if(token.equals(first)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+token);
+                    temp.setSecond(relation.getSecond().type+":"+relation.getSecond().aliasName);
+                    result.add(temp);
+                }
+                continue;
+            }
+            String second = relation.getSecond().aliasName;
+            if(equivList.contains(second)){
+                for(String token : equivList){
+                    if(token.equals(second)){
+                        continue;
+                    }
+                    Relation temp = new Relation();
+                    temp.setFirst(relation.getFirst().type+":"+relation.getFirst().aliasName);
+                    temp.setSecond(relation.getSecond().type+":"+token);
+                    result.add(temp);
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取一句中的实体
+     * @param line
+     * @param entityList
+     * @param begin
+     * @param end
+     * @return
+     */
+    public List<Entity> getEntityListFromSentence(String line, List<Entity> entityList, int begin, int end) {
+
+        List<Entity> result = Lists.newArrayList();
+        for(Entity entity : entityList){
+            List<Entity.Point>  points = entity.getIndexList();
+            boolean isContain = true;
+            for(Entity.Point point : points){
+                if(!(point.begin>=begin && point.end<end)){
+                    isContain = false;
+                }
+            }
+            if(isContain){
+                result.add(entity);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 判断是否为正例关系
+     * @param first
+     * @param second
+     * @param relationList
+     * @return
+     */
+    public boolean containsRelation(String first, String second, List<Relation> relationList) {
+
+        for(Relation relation : relationList){
+            if((first.equals(relation.getFirst().aliasName) && second.equals(relation.getSecond().aliasName)) ||
+                    (second.equals(relation.getFirst().aliasName) && first.equals(relation.getSecond().aliasName))){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 实体构成关系规则
+     * @param firstEntityType
+     * @param secondEntityType
+     * @return
+     */
+    public boolean matchRelation(String firstEntityType, String secondEntityType) {
+
+        if(firstEntityType.equals(secondEntityType) ||
+                ("Geographical".equals(firstEntityType) && "Habitat".equals(secondEntityType)) ||
+                ("Habitat".equals(firstEntityType) && "Geographical".equals(secondEntityType))){
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 取保使用的文件存在
+     * @param env
+     * @return
+     */
+    private String makesureFileExist(String env) {
+        File relationFile = new File(BASE_PATH+RELATION_PATH);
+        if(!relationFile.exists()){
+            relationFile.mkdir();
+        }
+
+        String resultPath = BASE_PATH+RELATION_PATH+env;
+        File resultFile = new File(resultPath);
+        if(!resultFile.exists()){
+            resultFile.mkdir();
+        }
+
+        return resultFile.getAbsolutePath();
+    }
+
+
+
+}
