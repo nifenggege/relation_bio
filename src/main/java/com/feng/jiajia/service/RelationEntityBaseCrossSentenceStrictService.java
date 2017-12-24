@@ -85,40 +85,11 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
                         String firstType = firstEntity.getType();
                         String secondType = secondEntity.getType();
                         if(matchRelation(firstEntity.getType(), secondEntity.getType())){
-
-                            if(firstEntity.getMaxPoint().begin > secondEntity.getMaxPoint().begin){
-                                Entity temp = firstEntity;
-                                firstEntity = secondEntity;
-                                secondEntity = temp;
-                            }
-
-                            if(firstEntity.getMaxPoint().end > secondEntity.getMaxPoint().begin){
-                                LOGGER.error("实体间存在交叉，不处理：{}=={}", firstEntity, secondEntity );
+                            String relation = processRelation(relationList, offset, line, firstEntity, secondEntity);
+                            if(StringUtils.isEmpty(relation)){
                                 continue;
                             }
-                            int firstStart = firstEntity.getMaxPoint().begin-offset;
-                            int firstEnd = firstEntity.getMaxPoint().end-offset;
-                            String firstEntityName = line.substring(firstStart, firstEnd);
-
-                            int secondStart = secondEntity.getMaxPoint().begin-offset;
-                            int secondEnd = secondEntity.getMaxPoint().end-offset;
-                            String secondEntityName = line.substring(secondStart, secondEnd);
-                            if(!(firstEnd<=sentence.getFirstSentenceLength() && secondStart>=sentence.getFirstSentenceLength())){
-                                continue;
-                            }
-                            String result = line.substring(0, firstStart) + (("Bacteria".equals(firstEntity.getType()))?"PROT_1":"PROT_2") +
-                                    line.substring(firstEnd, secondStart) + ("Bacteria".equals(secondEntity.getType())?"PROT_1":"PROT_2")+ line.substring(secondEnd);
-
-                            if( (firstEntity.getIndexList().size()>1 || firstEntityName.equals(firstEntity.getName())) &&
-                                    secondEntity.getIndexList().size()>1 || secondEntityName.equals(secondEntity.getName())){
-                                if(containsRelation(firstEntity.getAliasName(), secondEntity.getAliasName(), relationList)){
-                                    resultSet.add("+1\t" + result);
-                                }else{
-                                    resultSet.add("-1\t" + result);
-                                }
-                            }else{
-                                LOGGER.error("获取的值不匹配{}=={}", firstEntity, secondEntity);
-                            }
+                            resultSet.add(relation);
                         }
                     }
                 }
@@ -126,10 +97,7 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
             }
         }
 
-        for(String key : resultSet){
-            bw.write(key);
-            bw.newLine();
-        }
+        writeFile(bw, resultSet);
 
         br.close();
         bw.close();

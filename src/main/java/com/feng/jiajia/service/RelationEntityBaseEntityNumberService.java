@@ -61,10 +61,7 @@ public class RelationEntityBaseEntityNumberService extends AbstractRelationServi
                 }
             }
         }
-        for(String key : resultSet){
-            bw.write(key);
-            bw.newLine();
-        }
+        writeFile(bw, resultSet);
 
         br.close();
         bw.close();

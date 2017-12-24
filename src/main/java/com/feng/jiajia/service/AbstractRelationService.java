@@ -21,6 +21,82 @@ public abstract class AbstractRelationService implements RelationService{
     public static final String RELATION_PATH = "data/relation/";
     public static final String RESULT_SUFFIX = ".ins";
 
+    /**
+     * 处理匹配好实体
+     * @param relationList
+     * @param offset
+     * @param line
+     * @param firstEntity
+     * @param secondEntity
+     */
+    protected String processRelation(List<Relation> relationList, int offset, String line, Entity firstEntity, Entity secondEntity) {
+        if(firstEntity.getMaxPoint().begin > secondEntity.getMaxPoint().begin){
+            Entity temp = firstEntity;
+            firstEntity = secondEntity;
+            secondEntity = temp;
+        }
+
+        if(firstEntity.getMaxPoint().end > secondEntity.getMaxPoint().begin){
+            LOGGER.error("实体间存在交叉，不处理：{}=={}", firstEntity, secondEntity );
+            return null;
+        }
+        int firstStart = firstEntity.getMaxPoint().begin-offset;
+        int firstEnd = firstEntity.getMaxPoint().end-offset;
+        String firstEntityName = line.substring(firstStart, firstEnd);
+
+        int secondStart = secondEntity.getMaxPoint().begin-offset;
+        int secondEnd = secondEntity.getMaxPoint().end-offset;
+        String secondEntityName = line.substring(secondStart, secondEnd);
+        String result = line.substring(0, firstStart) + (("Bacteria".equals(firstEntity.getType()))?"PROT_1":"PROT_2") +
+                line.substring(firstEnd, secondStart) + ("Bacteria".equals(secondEntity.getType())?"PROT_1":"PROT_2")+ line.substring(secondEnd);
+
+        if( (firstEntity.getIndexList().size()>1 || firstEntityName.equals(firstEntity.getName())) &&
+                secondEntity.getIndexList().size()>1 || secondEntityName.equals(secondEntity.getName())){
+            if(containsRelation(firstEntity.getAliasName(), secondEntity.getAliasName(), relationList)){
+                return "+1\t" + result;
+            }else{
+                return "-1\t" + result;
+            }
+        }else{
+            LOGGER.error("获取的值不匹配{}=={}", firstEntity, secondEntity);
+        }
+        return null;
+    }
+
+    /**
+     * 写结果到文件
+     * @param bw
+     * @param resultSet
+     * @throws IOException
+     */
+    protected void writeFile(BufferedWriter bw, Set<String> resultSet) throws IOException {
+        for(String key : resultSet){
+            bw.write(key);
+            bw.newLine();
+        }
+    }
+
+    /**
+     * 获取句子，这里可以自定义如何获取
+     * @param br
+     * @return
+     * @throws IOException
+     */
+    protected List<String> getSentenceList(BufferedReader br) throws IOException {
+
+        List<String> result = Lists.newArrayList();
+        String line = null;
+        while((line=br.readLine())!=null){
+            result.add(line);
+        }
+        return result;
+    }
+
+    /**
+     * 根据env环境构建关系数据
+     * @param env
+     * @return
+     */
     public boolean buildRelation(String env){
 
         if(StringUtils.isEmpty(env) ||
