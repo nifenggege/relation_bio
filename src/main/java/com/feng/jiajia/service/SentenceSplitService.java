@@ -17,11 +17,17 @@ public class SentenceSplitService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SentenceSplitService.class);
 
+    public static final String BASE_PATH;
+
+    static{
+        BASE_PATH = System.getProperty("user.dir") + "/src/main/resource/";
+    }
+
     public static void getOwnSentence(String env){
 
-        String sentencePath = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\data\\sentencesplit\\";
-        String ownSentencePath = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\data\\own_sentenes_split\\";
-        String originPath = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\data\\origin\\";
+        String sentencePath = BASE_PATH + "data\\sentencesplit\\";
+        String ownSentencePath = BASE_PATH + "data\\own_sentenes_split\\";
+        String originPath = BASE_PATH + "data\\origin\\";
         File file = new File(sentencePath+env);
         File ownSentenceFile = new File(ownSentencePath+env);
         if(!ownSentenceFile.exists()){

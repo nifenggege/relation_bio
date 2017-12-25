@@ -15,12 +15,16 @@ import java.util.Set;
 public abstract class AbstractRelationService implements RelationService{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRelationService.class);
-    public static final String BASE_PATH = "E:\\idea_workspace\\relation_extraction\\src\\main\\resource\\";
+    public static final String BASE_PATH;
     public static final String SEN_SPL_TEXT_PATH = "data/own_sentenes_split/";
     public static final String ORIGIN_A1_A2_PATH = "data/origin/";
-    public static final String RELATION_PATH = "data/relation/";
     public static final String RESULT_SUFFIX = ".ins";
 
+    static{
+        BASE_PATH = System.getProperty("user.dir") + "/src/main/resource/";
+    }
+
+    abstract String getSavePath();
     /**
      * 处理匹配好实体
      * @param relationList
@@ -227,6 +231,7 @@ public abstract class AbstractRelationService implements RelationService{
                 for(int i=2; i<subTokens.length; i++){
                     equivList.add(subTokens[i]);
                 }
+                continue;
             }
             String[] tokens = line.split("(\\s)+");
             if(tokens.length!=4){
@@ -249,7 +254,8 @@ public abstract class AbstractRelationService implements RelationService{
      */
     private void updateRelation(List<Relation> result, List<String> equivList) {
 
-        for(Relation relation : result){
+        List<Relation> origin = Lists.newArrayList(result);
+        for(Relation relation : origin){
             String first = relation.getFirst().aliasName;
             if(equivList.contains(first)){
                 for(String token : equivList){
@@ -344,12 +350,12 @@ public abstract class AbstractRelationService implements RelationService{
      * @return
      */
     private String makesureFileExist(String env) {
-        File relationFile = new File(BASE_PATH+RELATION_PATH);
+        File relationFile = new File(BASE_PATH+getSavePath());
         if(!relationFile.exists()){
             relationFile.mkdir();
         }
 
-        String resultPath = BASE_PATH+RELATION_PATH+env;
+        String resultPath = BASE_PATH+getSavePath()+env;
         File resultFile = new File(resultPath);
         if(!resultFile.exists()){
             resultFile.mkdir();

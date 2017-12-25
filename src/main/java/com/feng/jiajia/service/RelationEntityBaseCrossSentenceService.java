@@ -89,6 +89,10 @@ public class RelationEntityBaseCrossSentenceService extends AbstractRelationServ
         writeFile(bw, resultSet);
     }
 
+    String getSavePath() {
+        return RELATION_PATH;
+    }
+
     public static void main(String[] args) {
         RelationEntityBaseCrossSentenceService service = new RelationEntityBaseCrossSentenceService();
         service.buildRelation("train");

@@ -67,6 +67,10 @@ public class RelationEntityBaseEntityNumberService extends AbstractRelationServi
         bw.close();
     }
 
+    String getSavePath() {
+        return RELATION_PATH;
+    }
+
     public static void main(String[] args) {
         RelationEntityBaseEntityNumberService service = new RelationEntityBaseEntityNumberService();
         service.buildRelation("train");

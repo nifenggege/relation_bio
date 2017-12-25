@@ -20,7 +20,7 @@ import java.util.Set;
 public class RelationEntityBaseSingletonSentenceService extends  AbstractRelationService{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityBaseSingletonSentenceService.class);
-
+    private static final String RELATION_PATH = "data/relation/";
     /**
      * 处理一篇文章
      * @param env
@@ -71,6 +71,10 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
         writeFile(bw, resultSet);
         br.close();
         bw.close();
+    }
+
+    String getSavePath() {
+        return RELATION_PATH;
     }
 
     public static void main(String[] args) {

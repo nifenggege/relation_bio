@@ -103,6 +103,11 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
         bw.close();
     }
 
+    @Override
+    String getSavePath() {
+        return RELATION_PATH;
+    }
+
     public static void main(String[] args) {
         RelationEntityBaseCrossSentenceStrictService service = new RelationEntityBaseCrossSentenceStrictService();
         service.buildRelation("train");
