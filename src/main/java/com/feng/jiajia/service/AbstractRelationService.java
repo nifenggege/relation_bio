@@ -20,6 +20,9 @@ public abstract class AbstractRelationService implements RelationService{
     public static final String ORIGIN_A1_A2_PATH = "data/origin/";
     public static final String RESULT_SUFFIX = ".ins";
 
+    private BufferedWriter resultAllBw;
+    private BufferedWriter resultAllExtBw;
+
     static{
         BASE_PATH = System.getProperty("user.dir") + "/src/main/resource/";
     }
@@ -73,7 +76,7 @@ public abstract class AbstractRelationService implements RelationService{
      * @param resultSet
      * @throws IOException
      */
-    protected void writeFile(BufferedWriter bw, Set<String> resultSet) throws IOException {
+    protected void writeFile(BufferedWriter bw, List<String> resultSet) throws IOException {
         for(String key : resultSet){
             bw.write(key);
             bw.newLine();
@@ -104,13 +107,32 @@ public abstract class AbstractRelationService implements RelationService{
     public boolean buildRelation(String env){
 
         if(StringUtils.isEmpty(env) ||
-                (!"train".equals(env) && !"dev".equals(env))){
+                (!"train".equals(env) && !"dev".equals(env) && !"test".equals(env))){
             LOGGER.error("输入的环境不正确，请检查环境. env={}", env);
             return false;
         }
 
         processDocuments(env);
+        close();
         return false;
+    }
+
+    protected void close() {
+        if(resultAllBw!=null){
+            try {
+                resultAllBw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if(resultAllExtBw!=null){
+            try {
+                resultAllExtBw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -119,19 +141,20 @@ public abstract class AbstractRelationService implements RelationService{
      */
     private void processDocuments(String env) {
 
-        String path = makesureFileExist(env);
-        Set<String> documentSet = getDocuments(env);
-        for (String name : documentSet) {
-            String fileName = BASE_PATH + SEN_SPL_TEXT_PATH + env + "/" + name;
-            try {
+        try {
+            String path = makesureFileExist(env);
+            Set<String> documentSet = getDocuments(env);
+            for (String name : documentSet) {
+                String fileName = BASE_PATH + SEN_SPL_TEXT_PATH + env + "/" + name;
                 processDocument(env, name);
-            } catch (FileNotFoundException e) {
-
-            } catch (UnsupportedEncodingException e) {
-
-            } catch (IOException e) {
-
             }
+        } catch (FileNotFoundException e) {
+
+            LOGGER.error("不能发现文件异常", e);
+        } catch (UnsupportedEncodingException e) {
+            LOGGER.error("不支持编码异常", e);
+        } catch (IOException e) {
+            LOGGER.error("IO异常", e);
         }
     }
 
@@ -160,9 +183,12 @@ public abstract class AbstractRelationService implements RelationService{
         //1 读取a1文件，返回Entity列表， Bacteria  Habitat  Geographical
         List<Entity> entityList = getEntityListFromA1(env, fileName);
         //2 读取a2文件, 返回Relation列表， equiv
-        List<Relation> relationList = getRelationFromA2(env, fileName);
+        List<Relation> relationList = Lists.newArrayList();
+        if(!"test".equals(env)){
+            relationList = getRelationFromA2(env, fileName);
+        }
         //3 读取txt分析
-        processTxt(env, fileName, entityList, relationList);
+        processTxt(env, fileName, entityList, relationList, resultAllBw, resultAllExtBw);
     }
 
     /**
@@ -349,7 +375,7 @@ public abstract class AbstractRelationService implements RelationService{
      * @param env
      * @return
      */
-    private String makesureFileExist(String env) {
+    private String makesureFileExist(String env) throws FileNotFoundException, UnsupportedEncodingException {
         File relationFile = new File(BASE_PATH+getSavePath());
         if(!relationFile.exists()){
             relationFile.mkdir();
@@ -361,6 +387,8 @@ public abstract class AbstractRelationService implements RelationService{
             resultFile.mkdir();
         }
 
+        resultAllBw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(BASE_PATH+getSavePath()+"/"+env+"/all.ins"), "utf-8"));
+        resultAllExtBw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(BASE_PATH+getSavePath()+"/"+env+"/all_ext.ins"), "utf-8"));
         return resultFile.getAbsolutePath();
     }
 

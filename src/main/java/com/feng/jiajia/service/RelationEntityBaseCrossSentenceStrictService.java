@@ -22,7 +22,8 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
     private static final Logger LOGGER = LoggerFactory.getLogger(RelationEntityBaseCrossSentenceStrictService.class);
     private static final String RELATION_PATH = "data/cross_strict_relation/";
 
-    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList) throws IOException {
+    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList,
+                           BufferedWriter bwAll, BufferedWriter bwExtAll) throws IOException {
 
         String path = BASE_PATH+SEN_SPL_TEXT_PATH+env+"/" + fileName;
         String name = fileName.split("\\.")[0];
@@ -34,7 +35,8 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
         while((line=br.readLine())!=null){
             sentenceList.add(line);
         }
-        Set<String> resultSet = Sets.newHashSet();
+        List<String> resultList = Lists.newArrayList();
+        List<String> resultExtList = Lists.newArrayList();
         //分句子,跨2个句子就需要获取2种文件
         for(int m=0; m<2; m++){
             List<Sentence> crossSentenceList = Lists.newArrayList();
@@ -86,10 +88,12 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
                         String secondType = secondEntity.getType();
                         if(matchRelation(firstEntity.getType(), secondEntity.getType())){
                             String relation = processRelation(relationList, offset, line, firstEntity, secondEntity);
-                            if(StringUtils.isEmpty(relation)){
+                            if(StringUtils.isEmpty(relation) || resultList.contains(relation)){
                                 continue;
                             }
-                            resultSet.add(relation);
+                            resultList.add(relation);
+                            resultExtList.add(fileName + "\t" + firstType+":"+firstEntity.getAliasName() + "\t" +
+                                    secondType+":"+secondEntity.getAliasName());
                         }
                     }
                 }
@@ -97,7 +101,9 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
             }
         }
 
-        writeFile(bw, resultSet);
+        writeFile(bw, resultList);
+        writeFile(bwAll, resultList);
+        writeFile(bwExtAll, resultExtList);
 
         br.close();
         bw.close();
@@ -111,5 +117,7 @@ public class RelationEntityBaseCrossSentenceStrictService extends AbstractRelati
     public static void main(String[] args) {
         RelationEntityBaseCrossSentenceStrictService service = new RelationEntityBaseCrossSentenceStrictService();
         service.buildRelation("train");
+        service.buildRelation("dev");
+        service.buildRelation("test");
     }
 }

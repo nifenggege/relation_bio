@@ -62,11 +62,11 @@ public class SentenceSplitService {
                 bw.close();
                 br.close();
             } catch (UnsupportedEncodingException e) {
-
+                LOGGER.error("编码错误", e);
             } catch (FileNotFoundException e) {
-
+                LOGGER.error("不能发现文件错误", e);
             } catch (IOException e) {
-
+                LOGGER.error("IO异常", e);
             }
         }
 
@@ -85,11 +85,11 @@ public class SentenceSplitService {
                 }
                 br.close();
             } catch (UnsupportedEncodingException e) {
-
+                LOGGER.error("编码错误", e);
             } catch (FileNotFoundException e) {
-
+                LOGGER.error("不能发现文件错误", e);
             } catch (IOException e) {
-
+                LOGGER.error("IO异常", e);
             }
         }
         return set;
@@ -97,5 +97,7 @@ public class SentenceSplitService {
 
     public static void main(String[] args) {
         getOwnSentence("train");
+        getOwnSentence("dev");
+        getOwnSentence("test");
     }
 }

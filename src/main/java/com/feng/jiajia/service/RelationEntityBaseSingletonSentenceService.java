@@ -29,7 +29,8 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
      * @param relationList
      * @throws IOException
      */
-    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList) throws IOException {
+    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList,
+                           BufferedWriter bwAll, BufferedWriter bwExtAll) throws IOException {
 
         String path = BASE_PATH+SEN_SPL_TEXT_PATH+env+"/" + fileName;
         String name = fileName.split("\\.")[0];
@@ -38,7 +39,8 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(savePath), "utf-8"));
 
         List<String> sentenceList = getSentenceList(br);
-        Set<String> resultSet = Sets.newHashSet();
+        List<String> resultList = Lists.newArrayList();
+        List<String> resultExtList = Lists.newArrayList();
         int offset = 0;
         for(String line : sentenceList){
             int last = offset + line.length();
@@ -56,11 +58,14 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
                     String firstType = firstEntity.getType();
                     String secondType = secondEntity.getType();
                     if(matchRelation(firstEntity.getType(), secondEntity.getType())){
+                        String extInfo = "";
                         String relation = processRelation(relationList, offset, line, firstEntity, secondEntity);
-                        if(StringUtils.isEmpty(relation)){
+                        if(StringUtils.isEmpty(relation) || resultList.contains(relation)){
                             continue;
                         }
-                        resultSet.add(relation);
+                        resultList.add(relation);
+                        resultExtList.add(fileName + "\t" + firstType+":"+firstEntity.getAliasName() + "\t" +
+                                secondType+":"+secondEntity.getAliasName());
                     }
                 }
             }
@@ -68,7 +73,9 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
             offset = last+1;
         }
 
-        writeFile(bw, resultSet);
+        writeFile(bw, resultList);
+        writeFile(bwAll, resultList);
+        writeFile(bwExtAll, resultExtList);
         br.close();
         bw.close();
     }
@@ -80,5 +87,7 @@ public class RelationEntityBaseSingletonSentenceService extends  AbstractRelatio
     public static void main(String[] args) {
         RelationEntityBaseSingletonSentenceService service = new RelationEntityBaseSingletonSentenceService();
         service.buildRelation("train");
+        service.buildRelation("dev");
+        service.buildRelation("test");
     }
 }

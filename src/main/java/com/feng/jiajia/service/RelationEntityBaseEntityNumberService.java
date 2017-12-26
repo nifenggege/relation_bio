@@ -22,7 +22,8 @@ public class RelationEntityBaseEntityNumberService extends AbstractRelationServi
     private static final int MAX_DISTINCE_ENTITY = 5;
     private static final String RELATION_PATH = "data/relation_base_entity_num" + MAX_DISTINCE_ENTITY+"/";
 
-    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList) throws IOException {
+    public void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList,
+                           BufferedWriter bwAll, BufferedWriter bwExtAll) throws IOException {
 
         String path = BASE_PATH+SEN_SPL_TEXT_PATH+env+"/" + fileName;
         String name = fileName.split("\\.")[0];
@@ -38,30 +39,35 @@ public class RelationEntityBaseEntityNumberService extends AbstractRelationServi
            return;
         }
         content = content.substring(0, content.length() - 1);
-        Set<String> resultSet = Sets.newHashSet();
+        List<String> resultList = Lists.newArrayList();
+        List<String> resultExtList = Lists.newArrayList();
         for(int i=0; i<entityList.size(); i++){
             Entity first = entityList.get(i);
             for(int j=i+1; j<entityList.size(); j++){
                 Entity second = entityList.get(j);
                 if(matchRelation(first.getType(), second.getType())){
 
-                    if(first.getMaxPoint().end <= second.getMaxPoint().begin){
+                    if(first.getMaxPoint().end <= second.getMaxPoint().begin && second.getMaxPoint().end<=content.length()){
                         if(containsRelation(first.getAliasName(), second.getAliasName(), relationList)){
-                            resultSet.add("+1\t" + (("Bacteria".equals(first.getType()))?"PROT_1":"PROT_2") +
+                            resultList.add("+1\t" + (("Bacteria".equals(first.getType()))?"PROT_1":"PROT_2") +
                                     content.substring(first.getMaxPoint().end, second.getMaxPoint().begin) +
                                     (("Bacteria".equals(second.getType()))?"PROT_1":"PROT_2"));
                         }else{
-                            resultSet.add("-1\t" + (("Bacteria".equals(first.getType()))?"PROT_1":"PROT_2") +
+                            resultList.add("-1\t" + (("Bacteria".equals(first.getType()))?"PROT_1":"PROT_2") +
                                     content.substring(first.getMaxPoint().end, second.getMaxPoint().begin) +
                                     (("Bacteria".equals(second.getType()))?"PROT_1":"PROT_2"));
                         }
+                        resultExtList.add(fileName+"\t" + first.getType()+":"+first.getAliasName() +"\t"+
+                                second.getType()+":"+second.getAliasName());
                     }else{
                         LOGGER.error("实体间存在交叉，不处理：{}#######{}", first, second);
                     }
                 }
             }
         }
-        writeFile(bw, resultSet);
+        writeFile(bw, resultList);
+        writeFile(bwAll, resultList);
+        writeFile(bwExtAll, resultExtList);
 
         br.close();
         bw.close();
@@ -74,5 +80,7 @@ public class RelationEntityBaseEntityNumberService extends AbstractRelationServi
     public static void main(String[] args) {
         RelationEntityBaseEntityNumberService service = new RelationEntityBaseEntityNumberService();
         service.buildRelation("train");
+        service.buildRelation("dev");
+        service.buildRelation("test");
     }
 }

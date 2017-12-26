@@ -3,6 +3,7 @@ package com.feng.jiajia.service;
 import com.feng.jiajia.model.Entity;
 import com.feng.jiajia.model.Relation;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.List;
 
@@ -41,7 +42,8 @@ public interface RelationService {
      * @param entityList
      * @param relationList
      */
-    void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList)throws IOException;
+    void processTxt(String env, String fileName, List<Entity> entityList, List<Relation> relationList,
+                    BufferedWriter bwAll, BufferedWriter bwExtAll)throws IOException;
 
     /**
      * 从句子中获取该句子中的实体，所有的实体存储在entityList中， begin，end为句子的开始和结尾，偏移量以文章头开始算
